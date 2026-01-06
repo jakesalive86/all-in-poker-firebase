@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>♠ All-In Poker Club ♠</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0a0a0a">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      background-color: #0a0a0a;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      text-align: center;
+      padding: 30px 20px;
+      margin: 0;
+      min-height: 100vh;
+    }
+
+    h1 {
+      color: #d4af37;
+      text-transform: uppercase;
+      margin: 0 0 10px 0;
+      font-size: 1.8rem;
+      letter-spacing: 3px;
+      text-shadow: 0 0 30px rgba(212, 175, 55, 0.3);
+    }
+    .subtitle {
+      color: #666;
+      font-size: 0.9rem;
+      margin-bottom: 40px;
+    }
+
+    .menu-btn {
+      display: block;
+      width: 100%;
+      max-width: 400px;
+      margin: 15px auto;
+      padding: 20px 25px;
+      font-size: 1.2rem;
+      text-decoration: none;
+      color: white;
+      background: linear-gradient(135deg, #1a1a1a, #111);
+      border-radius: 12px;
+      border: 1px solid #333;
+      border-left: 5px solid #666;
+      text-align: left;
+      transition: all 0.2s;
+    }
+    .menu-btn:hover, .menu-btn:active {
+      background: linear-gradient(135deg, #222, #1a1a1a);
+      border-color: #444;
+      transform: translateX(5px);
+    }
+
+    .menu-btn .icon {
+      font-size: 1.4rem;
+      margin-right: 12px;
+    }
+    .menu-btn .label {
+      font-weight: 600;
+    }
+    .menu-btn .desc {
+      display: block;
+      font-size: 0.8rem;
+      color: #666;
+      margin-top: 4px;
+      font-weight: normal;
+    }
+
+    .btn-checkin { border-left-color: #00ff88; }
+    .btn-checkin:hover { border-left-color: #00ff88; }
+
+    .btn-rsvp { border-left-color: #e000ff; }
+    .btn-rsvp:hover { border-left-color: #e000ff; }
+
+    .btn-leaderboard { border-left-color: #00ccff; }
+    .btn-leaderboard:hover { border-left-color: #00ccff; }
+
+    .btn-director { border-left-color: #ffa500; }
+    .btn-director:hover { border-left-color: #ffa500; }
+
+    .footer {
+      margin-top: 50px;
+      color: #444;
+      font-size: 0.75rem;
+    }
+
+    .badge {
+      display: inline-block;
+      background: #ff6b6b;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 0.6rem;
+      vertical-align: middle;
+      margin-left: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>♠ ALL-IN POKER CLUB ♠</h1>
+  <p class="subtitle">🂡 Tournament Management System 🂡 <span class="badge">FIREBASE</span></p>
+
+  <a href="checkin.html" class="menu-btn btn-checkin">
+    <span class="icon">✅</span>
+    <span class="label">Player Check-In</span>
+    <span class="desc">Kiosk mode for venue tablet</span>
+  </a>
+
+  <a href="rsvp.html" class="menu-btn btn-rsvp">
+    <span class="icon">📅</span>
+    <span class="label">RSVP</span>
+    <span class="desc">Let us know you're coming</span>
+  </a>
+
+  <a href="leaderboard.html" class="menu-btn btn-leaderboard">
+    <span class="icon">🏆</span>
+    <span class="label">Leaderboard</span>
+    <span class="desc">Season standings & bounty hunters</span>
+  </a>
+
+  <a href="director.html" class="menu-btn btn-director">
+    <span class="icon">👑</span>
+    <span class="label">Director Mode</span>
+    <span class="desc">Tournament admin (PIN required)</span>
+  </a>
+
+  <div class="footer">
+    All-In Poker Club • Denver, CO
+  </div>
+
+</body>
+</html>

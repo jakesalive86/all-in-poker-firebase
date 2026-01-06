@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>♠ RSVP - All-In Poker Club ♠</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#0a0a0a">
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      background-color: #0a0a0a;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 20px;
+      margin: 0;
+      min-height: 100vh;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #222;
+    }
+    h1 {
+      color: #d4af37;
+      margin: 0 0 5px 0;
+      font-size: 1.4rem;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      text-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+    }
+    .subtitle { color: #666; font-size: 0.85rem; }
+
+    .counters-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .counter-box {
+      flex: 1;
+      background: linear-gradient(135deg, #1a1a1a, #111);
+      border: 1px solid #333;
+      border-radius: 10px;
+      padding: 12px 8px;
+      text-align: center;
+    }
+    .counter-label {
+      font-size: 0.65rem;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+    .counter-main {
+      font-size: 1.8rem;
+      font-weight: bold;
+      font-family: 'SF Mono', 'Monaco', monospace;
+    }
+    .counter-seated { color: #00ff88; }
+    .counter-divider { color: #444; margin: 0 2px; }
+    .counter-total { color: #ffa500; }
+
+    .rsvp-form {
+      background: #111;
+      border: 1px solid #222;
+      border-radius: 12px;
+      padding: 18px;
+      margin-bottom: 15px;
+    }
+    .input-group {
+      margin-bottom: 12px;
+    }
+    .input-group label {
+      display: block;
+      color: #888;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+    select, input[type="text"] {
+      width: 100%;
+      padding: 14px;
+      font-size: 1rem;
+      border-radius: 8px;
+      border: 1px solid #333;
+      background: #000;
+      color: white;
+    }
+    select { color: #d4af37; font-weight: 600; }
+    input[type="text"]:focus { border-color: #e000ff; outline: none; }
+
+    .input-wrapper { position: relative; }
+    #autocomplete-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      position: absolute;
+      width: 100%;
+      z-index: 100;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 0 0 8px 8px;
+      max-height: 180px;
+      overflow-y: auto;
+      display: none;
+    }
+    .player-option {
+      padding: 12px 14px;
+      text-align: left;
+      font-size: 0.95rem;
+      border-bottom: 1px solid #252525;
+      cursor: pointer;
+    }
+    .player-option:active { background: #252525; }
+    .new-player { color: #00ff88; font-weight: 600; }
+
+    .game-select {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .game-option {
+      flex: 1;
+      padding: 12px 8px;
+      background: #1a1a1a;
+      border: 2px solid #333;
+      border-radius: 8px;
+      color: #666;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      text-align: center;
+    }
+    .game-option.selected {
+      border-color: #e000ff;
+      color: #e000ff;
+      background: rgba(224, 0, 255, 0.1);
+    }
+
+    .rsvp-btn {
+      width: 100%;
+      padding: 16px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background: linear-gradient(135deg, #e000ff, #b000cc);
+      color: #fff;
+    }
+    .rsvp-btn:active { transform: scale(0.98); }
+    .rsvp-btn:disabled { background: #333; color: #666; }
+
+    #message {
+      text-align: center;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      display: none;
+      font-size: 0.95rem;
+    }
+    #message.success {
+      display: block;
+      background: rgba(0, 255, 136, 0.1);
+      border: 1px solid #00ff88;
+      color: #00ff88;
+    }
+    #message.error {
+      display: block;
+      background: rgba(255, 68, 68, 0.1);
+      border: 1px solid #ff4444;
+      color: #ff4444;
+    }
+    .msg-fast {
+      font-size: 0.8rem;
+      color: #00ccff;
+      margin-left: 8px;
+    }
+
+    .theme-banner {
+      margin-top: 10px;
+      padding: 8px 15px;
+      background: linear-gradient(135deg, #4a1a6b, #2a1a4b);
+      border: 1px solid #8b4fc7;
+      border-radius: 8px;
+      color: #e0b0ff;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+    .theme-banner::before { content: '🎭 '; }
+
+    .firebase-status {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.7rem;
+      font-weight: bold;
+    }
+    .firebase-status.connected {
+      background: rgba(0, 255, 136, 0.2);
+      color: #00ff88;
+      border: 1px solid #00ff88;
+    }
+    .firebase-status.disconnected {
+      background: rgba(255, 68, 68, 0.2);
+      color: #ff4444;
+      border: 1px solid #ff4444;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="firebase-status" id="firebaseStatus">CONNECTING...</div>
+
+  <div class="header">
+    <h1>♠ ALL-IN POKER CLUB ♠</h1>
+    <div class="subtitle">🂡 RSVP for Upcoming Games 🂡</div>
+    <div class="theme-banner" id="themeBanner" style="display:none;"></div>
+  </div>
+
+  <div class="counters-row">
+    <div class="counter-box">
+      <div class="counter-label">Game 1</div>
+      <div class="counter-main">
+        <span class="counter-seated" id="g1Seated">-</span>
+        <span class="counter-divider">/</span>
+        <span class="counter-total" id="g1Total">-</span>
+      </div>
+    </div>
+    <div class="counter-box">
+      <div class="counter-label">Game 2</div>
+      <div class="counter-main">
+        <span class="counter-seated" id="g2Seated">-</span>
+        <span class="counter-divider">/</span>
+        <span class="counter-total" id="g2Total">-</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="message"></div>
+
+  <div class="rsvp-form">
+    <div class="input-group">
+      <label>Select Game Date</label>
+      <select id="eventSelect" onchange="onEventChange()">
+        <option>Loading schedule...</option>
+      </select>
+    </div>
+
+    <div class="input-group">
+      <label>Your Name</label>
+      <div class="input-wrapper">
+        <input type="text" id="nameInput" placeholder="Start typing..." autocomplete="off">
+        <ul id="autocomplete-list"></ul>
+      </div>
+    </div>
+
+    <div class="input-group">
+      <label>Which Game(s)?</label>
+      <div class="game-select">
+        <div class="game-option selected" data-game="1" onclick="selectGame(this)">Game 1</div>
+        <div class="game-option" data-game="2" onclick="selectGame(this)">Game 2</div>
+        <div class="game-option" data-game="both" onclick="selectGame(this)">Both</div>
+      </div>
+    </div>
+
+    <button class="rsvp-btn" id="rsvpBtn" onclick="submitRsvp()">Count Me In!</button>
+  </div>
+
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
+  import {
+    getFirestore,
+    collection,
+    addDoc,
+    serverTimestamp
+  } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+
+  // Import Firebase config from central config file
+  import { firebaseConfig, GAS_API_URL } from './firebase-config.js';
+
+  let db;
+  let isFirebaseReady = false;
+
+  try {
+    const app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    isFirebaseReady = firebaseConfig.apiKey !== "YOUR_API_KEY";
+
+    if (isFirebaseReady) {
+      document.getElementById('firebaseStatus').textContent = 'FIREBASE';
+      document.getElementById('firebaseStatus').className = 'firebase-status connected';
+    } else {
+      document.getElementById('firebaseStatus').textContent = 'DEMO MODE';
+      document.getElementById('firebaseStatus').className = 'firebase-status disconnected';
+    }
+  } catch (err) {
+    console.error("Firebase init error:", err);
+    document.getElementById('firebaseStatus').textContent = 'OFFLINE';
+    document.getElementById('firebaseStatus').className = 'firebase-status disconnected';
+  }
+
+  let masterList = [];
+  let game1Data = { checkedInCount: 0, totalExpected: 0 };
+  let game2Data = { checkedInCount: 0, totalExpected: 0 };
+  let currentDate = "";
+  let currentLocation = "";
+  let currentTheme = "";
+  let selectedGame = "1";
+  let scheduleData = [];
+
+  window.onload = function() {
+    loadSchedule();
+    loadMasterList();
+
+    const input = document.getElementById('nameInput');
+    input.addEventListener('input', () => showSuggestions(input.value));
+    input.addEventListener('focus', () => showSuggestions(input.value));
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.input-wrapper')) {
+        document.getElementById('autocomplete-list').style.display = 'none';
+      }
+    });
+
+    setInterval(refreshStats, 30000);
+  };
+
+  window.selectGame = function(el) {
+    document.querySelectorAll('.game-option').forEach(opt => opt.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedGame = el.dataset.game;
+  };
+
+  function loadSchedule() {
+    fetch(GAS_API_URL + "?action=getSchedule")
+      .then(r => r.json())
+      .then(data => {
+        scheduleData = data || [];
+        const select = document.getElementById('eventSelect');
+        select.innerHTML = "";
+
+        if (!data || data.length === 0) {
+          select.innerHTML = '<option>No games scheduled</option>';
+          return;
+        }
+
+        data.forEach((game, index) => {
+          const opt = document.createElement('option');
+          opt.value = index;
+          let label = `${game.date} - ${game.location}`;
+          if (game.type && game.type !== "Regular") label += ` (${game.type})`;
+          opt.innerText = label;
+          select.appendChild(opt);
+        });
+
+        onEventChange();
+      });
+  }
+
+  window.onEventChange = function() {
+    const index = parseInt(document.getElementById('eventSelect').value);
+    if (isNaN(index) || !scheduleData[index]) return;
+
+    const game = scheduleData[index];
+    currentDate = game.date;
+    currentLocation = game.location;
+    currentTheme = game.theme || "";
+
+    const banner = document.getElementById('themeBanner');
+    if (currentTheme) {
+      banner.innerText = currentTheme;
+      banner.style.display = 'block';
+    } else {
+      banner.style.display = 'none';
+    }
+
+    refreshStats();
+  };
+
+  function loadMasterList() {
+    fetch(GAS_API_URL + "?action=getPlayerList")
+      .then(r => r.json())
+      .then(data => { masterList = data || []; });
+  }
+
+  function refreshStats() {
+    if (!currentDate) return;
+
+    fetch(`${GAS_API_URL}?action=getDailyStats&date=${encodeURIComponent(currentDate)}&location=${encodeURIComponent(currentLocation)}`)
+      .then(r => r.json())
+      .then(data => {
+        game1Data = data.game1 || { checkedInCount: 0, totalExpected: 0 };
+        game2Data = data.game2 || { checkedInCount: 0, totalExpected: 0 };
+        updateDisplay();
+      });
+  }
+
+  function updateDisplay() {
+    document.getElementById('g1Seated').innerText = game1Data.checkedInCount;
+    document.getElementById('g1Total').innerText = game1Data.totalExpected;
+    document.getElementById('g2Seated').innerText = game2Data.checkedInCount;
+    document.getElementById('g2Total').innerText = game2Data.totalExpected;
+  }
+
+  window.submitRsvp = async function() {
+    const name = document.getElementById('nameInput').value.trim();
+    if (!name) { showMessage("Please enter your name", "error"); return; }
+
+    const btn = document.getElementById('rsvpBtn');
+    btn.disabled = true;
+    btn.innerText = "Sending...";
+
+    const startTime = performance.now();
+
+    if (isFirebaseReady) {
+      try {
+        // Write to Firestore (fast!)
+        const games = selectedGame === "both" ? [1, 2] : [parseInt(selectedGame)];
+
+        for (const gameNum of games) {
+          await addDoc(collection(db, "rsvps"), {
+            player: name,
+            venue: currentLocation,
+            gameNum: gameNum,
+            date: currentDate,
+            timestamp: serverTimestamp(),
+            syncedToSheets: false
+          });
+        }
+
+        const elapsed = Math.round(performance.now() - startTime);
+        document.getElementById('nameInput').value = "";
+        const gameText = selectedGame === "both" ? "both games" : `Game ${selectedGame}`;
+        showMessage(`See you at ${gameText}, ${name}! 🎉 <span class="msg-fast">${elapsed}ms</span>`, "success");
+
+        btn.disabled = false;
+        btn.innerText = "Count Me In!";
+
+        setTimeout(refreshStats, 2000);
+
+      } catch (err) {
+        console.error("Firestore RSVP failed:", err);
+        fallbackToGAS(name);
+      }
+    } else {
+      fallbackToGAS(name);
+    }
+  };
+
+  function fallbackToGAS(name) {
+    const btn = document.getElementById('rsvpBtn');
+
+    fetch(GAS_API_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "rsvp",
+        player: name,
+        date: currentDate,
+        location: currentLocation,
+        gameNumber: selectedGame
+      })
+    })
+    .then(r => r.json())
+    .then(res => {
+      btn.disabled = false;
+      btn.innerText = "Count Me In!";
+
+      if (res.status === "success") {
+        document.getElementById('nameInput').value = "";
+        const gameText = selectedGame === "both" ? "both games" : `Game ${selectedGame}`;
+        showMessage(`See you at ${gameText}, ${name}! 🎉`, "success");
+        refreshStats();
+        loadMasterList();
+      } else {
+        showMessage(res.message || "Already on the list", "error");
+      }
+    })
+    .catch(err => {
+      btn.disabled = false;
+      btn.innerText = "Count Me In!";
+      showMessage("Network error", "error");
+    });
+  }
+
+  function showMessage(text, type) {
+    const msg = document.getElementById('message');
+    msg.innerHTML = text;
+    msg.className = type;
+    setTimeout(() => { msg.className = ''; }, 4000);
+  }
+
+  window.showSuggestions = function(val) {
+    const list = document.getElementById('autocomplete-list');
+    list.innerHTML = '';
+    if (!val) { list.style.display = 'none'; return; }
+
+    const matches = masterList.filter(p => p.toLowerCase().includes(val.toLowerCase())).slice(0, 6);
+
+    matches.forEach(name => {
+      const item = document.createElement('li');
+      item.className = 'player-option';
+      item.innerText = name;
+      item.onclick = () => {
+        document.getElementById('nameInput').value = name;
+        list.style.display = 'none';
+      };
+      list.appendChild(item);
+    });
+
+    if (!masterList.some(p => p.toLowerCase() === val.toLowerCase()) && val.trim()) {
+      const item = document.createElement('li');
+      item.className = 'player-option new-player';
+      item.innerText = `Use: "${val.trim()}"`;
+      item.onclick = () => { list.style.display = 'none'; };
+      list.appendChild(item);
+    }
+
+    list.style.display = matches.length > 0 ? 'block' : 'none';
+  };
+</script>
+</body>
+</html>

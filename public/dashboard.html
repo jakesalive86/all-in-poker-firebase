@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>All-In Poker - Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      min-height: 100vh;
+      padding: 10px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 15px;
+      background: #16213e;
+      border-radius: 8px;
+      margin-bottom: 15px;
+    }
+
+    .header h1 {
+      font-size: 1.3rem;
+      color: #ffd700;
+    }
+
+    .header-info {
+      text-align: right;
+      font-size: 0.85rem;
+      color: #aaa;
+    }
+
+    .venue-toggle {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .venue-btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .venue-btn.tight-end {
+      background: #2d4a3e;
+      color: #4ade80;
+    }
+
+    .venue-btn.wild-corgi {
+      background: #4a2d4a;
+      color: #c084fc;
+    }
+
+    .venue-btn.active {
+      transform: scale(1.02);
+      box-shadow: 0 0 15px rgba(255,215,0,0.3);
+      border: 2px solid #ffd700;
+    }
+
+    .venue-btn:not(.active) {
+      opacity: 0.5;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 15px;
+    }
+
+    .card {
+      background: #16213e;
+      border-radius: 10px;
+      padding: 15px;
+      border: 1px solid #2a2a4a;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #2a2a4a;
+    }
+
+    .card-title {
+      font-size: 1rem;
+      font-weight: bold;
+      color: #ffd700;
+    }
+
+    .card-badge {
+      background: #ffd700;
+      color: #1a1a2e;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-weight: bold;
+      font-size: 0.9rem;
+    }
+
+    .game-tabs {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 10px;
+    }
+
+    .game-tab {
+      flex: 1;
+      padding: 8px;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      background: #2a2a4a;
+      color: #aaa;
+      transition: all 0.2s;
+    }
+
+    .game-tab.active {
+      background: #ffd700;
+      color: #1a1a2e;
+      font-weight: bold;
+    }
+
+    .player-list {
+      max-height: 250px;
+      overflow-y: auto;
+    }
+
+    .player-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 10px;
+      background: #1a1a2e;
+      border-radius: 6px;
+      margin-bottom: 5px;
+      font-size: 0.9rem;
+    }
+
+    .player-item.checked-in {
+      border-left: 3px solid #4ade80;
+    }
+
+    .player-item.rsvp {
+      border-left: 3px solid #60a5fa;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .player-item.rsvp:not(.arrived):hover {
+      background: #2a3a5a;
+      border-left-color: #4ade80;
+    }
+
+    .player-item.rsvp:not(.arrived):active {
+      transform: scale(0.98);
+    }
+
+    .player-item.rsvp.arrived {
+      border-left: 3px solid #4ade80;
+      opacity: 0.5;
+      cursor: default;
+    }
+
+    .player-item.rsvp.arrived .player-name {
+      text-decoration: line-through;
+    }
+
+    .checkin-hint {
+      font-size: 0.7rem;
+      color: #60a5fa;
+    }
+
+    .arrived-badge {
+      background: #4ade80;
+      color: #1a1a2e;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: bold;
+      margin-left: 8px;
+    }
+
+    .player-rank {
+      color: #888;
+      font-size: 0.8rem;
+      min-width: 25px;
+    }
+
+    .player-name {
+      flex: 1;
+      margin-left: 8px;
+    }
+
+    .player-score {
+      font-weight: bold;
+      color: #ffd700;
+    }
+
+    .player-bounty {
+      background: #ec4899;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 0.75rem;
+      margin-left: 8px;
+    }
+
+    .stats-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .stat-box {
+      flex: 1;
+      background: #1a1a2e;
+      padding: 12px;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 1.8rem;
+      font-weight: bold;
+      color: #ffd700;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: #888;
+      text-transform: uppercase;
+    }
+
+    .scoring-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 10px;
+      background: #1a1a2e;
+      border-radius: 6px;
+      margin-bottom: 5px;
+      font-size: 0.9rem;
+    }
+
+    .scoring-item .rank {
+      background: #ffd700;
+      color: #1a1a2e;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 0.8rem;
+    }
+
+    .scoring-item .rank.top3 {
+      background: linear-gradient(135deg, #ffd700, #ffaa00);
+    }
+
+    .scoring-item.eliminated {
+      opacity: 0.6;
+      text-decoration: line-through;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 30px;
+      color: #666;
+      font-style: italic;
+    }
+
+    .refresh-btn {
+      background: #2a2a4a;
+      border: none;
+      color: #aaa;
+      padding: 8px 15px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+
+    .refresh-btn:hover {
+      background: #3a3a5a;
+      color: #fff;
+    }
+
+    .refresh-btn.loading {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
+    .last-updated {
+      font-size: 0.75rem;
+      color: #666;
+      margin-top: 5px;
+    }
+
+    .leaderboard-item {
+      display: flex;
+      align-items: center;
+      padding: 8px 10px;
+      background: #1a1a2e;
+      border-radius: 6px;
+      margin-bottom: 5px;
+    }
+
+    .leaderboard-item.top1 { border-left: 3px solid #ffd700; }
+    .leaderboard-item.top2 { border-left: 3px solid #c0c0c0; }
+    .leaderboard-item.top3 { border-left: 3px solid #cd7f32; }
+
+    .leaderboard-rank {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 0.85rem;
+      margin-right: 10px;
+    }
+
+    .top1 .leaderboard-rank { background: #ffd700; color: #1a1a2e; }
+    .top2 .leaderboard-rank { background: #c0c0c0; color: #1a1a2e; }
+    .top3 .leaderboard-rank { background: #cd7f32; color: #1a1a2e; }
+    .leaderboard-rank { background: #2a2a4a; color: #888; }
+
+    .auto-refresh-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: #888;
+    }
+
+    .auto-refresh-toggle input {
+      width: 18px;
+      height: 18px;
+    }
+
+    .date-picker {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-bottom: 5px;
+    }
+
+    .date-picker input[type="date"] {
+      background: #2a2a4a;
+      border: 1px solid #3a3a5a;
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    .date-picker input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(1);
+      cursor: pointer;
+    }
+
+    .date-nav {
+      background: #2a2a4a;
+      border: none;
+      color: #aaa;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .date-nav:hover {
+      background: #3a3a5a;
+      color: #fff;
+    }
+
+    .date-nav.today-btn {
+      background: #ffd700;
+      color: #1a1a2e;
+      font-weight: bold;
+    }
+
+    .date-nav.today-btn:hover {
+      background: #ffcc00;
+    }
+
+    .count-display {
+      padding: 15px 0;
+    }
+
+    .count-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 15px;
+      background: #1a1a2e;
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+
+    .count-label {
+      color: #888;
+      font-size: 0.95rem;
+    }
+
+    .count-value {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #ffd700;
+    }
+
+    .privacy-note {
+      text-align: center;
+      color: #555;
+      font-size: 0.75rem;
+      font-style: italic;
+      padding: 8px 0;
+    }
+
+    /* Firebase Badge */
+    .firebase-badge {
+      display: inline-block;
+      background: #ff6b6b;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 0.6rem;
+      vertical-align: middle;
+      margin-left: 8px;
+    }
+
+    /* Write time indicator */
+    .write-time {
+      font-size: 0.7rem;
+      color: #4ade80;
+      margin-left: 8px;
+    }
+
+    @media (max-width: 768px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>All-In Poker Dashboard <span class="firebase-badge">FIREBASE</span></h1>
+    <div class="header-info">
+      <div class="date-picker">
+        <button class="date-nav" onclick="changeDate(-1)">&lt;</button>
+        <input type="date" id="dateInput" onchange="onDateChange()">
+        <button class="date-nav" onclick="changeDate(1)">&gt;</button>
+        <button class="date-nav today-btn" onclick="goToToday()">Today</button>
+      </div>
+      <div class="last-updated">Last updated: <span id="lastUpdated">--</span></div>
+    </div>
+  </div>
+
+  <div class="venue-toggle">
+    <button class="venue-btn tight-end active" onclick="selectVenue('Tight End')">Tight End</button>
+    <button class="venue-btn wild-corgi" onclick="selectVenue('Wild Corgi')">Wild Corgi</button>
+  </div>
+
+  <div class="game-tabs" style="max-width: 300px; margin-bottom: 10px;">
+    <button class="game-tab active" onclick="switchStatsGame(1)">Game 1</button>
+    <button class="game-tab" onclick="switchStatsGame(2)">Game 2</button>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-box">
+      <div class="stat-value" id="totalCheckedIn">--</div>
+      <div class="stat-label">Checked In</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" id="totalRsvp">--</div>
+      <div class="stat-label">Not Arrived</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" id="totalExpected">--</div>
+      <div class="stat-label">Total Expected</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" id="eliminatedCount">--</div>
+      <div class="stat-label">Eliminated</div>
+    </div>
+  </div>
+
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+    <div class="auto-refresh-toggle">
+      <input type="checkbox" id="autoRefresh" checked>
+      <label for="autoRefresh">Auto-refresh (30s)</label>
+    </div>
+    <button class="refresh-btn" id="refreshBtn" onclick="refreshAll()">Refresh Now</button>
+  </div>
+
+  <div class="grid">
+
+    <!-- Check-ins Card -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Checked In</span>
+        <span class="card-badge" id="checkedInBadge">0</span>
+      </div>
+      <div class="game-tabs">
+        <button class="game-tab active" onclick="switchCheckinTab(1)">Game 1 (<span id="g1CheckinCount">0</span>)</button>
+        <button class="game-tab" onclick="switchCheckinTab(2)">Game 2 (<span id="g2CheckinCount">0</span>)</button>
+      </div>
+      <div class="player-list" id="checkinList">
+        <div class="empty-state">Loading...</div>
+      </div>
+    </div>
+
+    <!-- RSVPs Card -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">RSVPs</span>
+        <span class="card-badge" id="rsvpBadge">0</span>
+      </div>
+      <div class="game-tabs">
+        <button class="game-tab active" onclick="switchRsvpTab(1)">Game 1 (<span id="g1RsvpCount">0</span>)</button>
+        <button class="game-tab" onclick="switchRsvpTab(2)">Game 2 (<span id="g2RsvpCount">0</span>)</button>
+      </div>
+      <div class="player-list" id="rsvpList">
+        <div class="empty-state">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Live Scoring Card -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Live Scoring</span>
+        <span class="card-badge" id="scoringBadge">0</span>
+      </div>
+      <div class="game-tabs">
+        <button class="game-tab active" onclick="switchScoringTab(1)">Game 1</button>
+        <button class="game-tab" onclick="switchScoringTab(2)">Game 2</button>
+      </div>
+      <div class="player-list" id="scoringList">
+        <div class="empty-state">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Bounties Card -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Bounties (Tonight)</span>
+        <span class="card-badge" id="bountyBadge">0</span>
+      </div>
+      <div class="game-tabs">
+        <button class="game-tab active" onclick="switchBountyTab(1)">Game 1</button>
+        <button class="game-tab" onclick="switchBountyTab(2)">Game 2</button>
+      </div>
+      <div class="player-list" id="bountyList">
+        <div class="empty-state">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Season Leaderboard Card -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Season Leaderboard (Top 10)</span>
+      </div>
+      <div class="player-list" id="leaderboardList">
+        <div class="empty-state">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Season Bounty Leaders Card -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Bounty Leaders (Top 10)</span>
+      </div>
+      <div class="player-list" id="bountyLeadersList">
+        <div class="empty-state">Loading...</div>
+      </div>
+    </div>
+
+  </div>
+
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+  import { getFirestore, collection, addDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+  import { firebaseConfig, GAS_API_URL, isFirebaseConfigured } from './firebase-config.js';
+
+  // ============================================
+  // FIREBASE INITIALIZATION
+  // ============================================
+  let db = null;
+  let useFirebase = false;
+
+  if (isFirebaseConfigured()) {
+    const app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    useFirebase = true;
+    console.log("Firebase initialized for Dashboard");
+  } else {
+    console.log("Firebase not configured - using GAS API only");
+  }
+
+  // ============================================
+  // CONFIGURATION
+  // ============================================
+  const API_URL = GAS_API_URL;
+
+  // ============================================
+  // STATE
+  // ============================================
+  let currentVenue = "Tight End";
+  let currentDate = new Date().toLocaleDateString();
+  let dailyStats = null;
+  let liveScoring = { game1: { eliminations: [], bounties: [] }, game2: { eliminations: [], bounties: [] } };
+  let leaderboard = null;
+  let refreshInterval = null;
+
+  let activeCheckinTab = 1;
+  let activeRsvpTab = 1;
+  let activeScoringTab = 1;
+  let activeBountyTab = 1;
+  let activeStatsGame = 1;
+
+  // Make functions globally available
+  window.selectVenue = selectVenue;
+  window.changeDate = changeDate;
+  window.onDateChange = onDateChange;
+  window.goToToday = goToToday;
+  window.refreshAll = refreshAll;
+  window.switchStatsGame = switchStatsGame;
+  window.switchCheckinTab = switchCheckinTab;
+  window.switchRsvpTab = switchRsvpTab;
+  window.switchScoringTab = switchScoringTab;
+  window.switchBountyTab = switchBountyTab;
+  window.checkInFromRsvp = checkInFromRsvp;
+
+  // ============================================
+  // INITIALIZATION
+  // ============================================
+  document.addEventListener("DOMContentLoaded", () => {
+    initializeDatePicker();
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("venue")) {
+      selectVenue(params.get("venue"));
+    }
+    if (params.get("date")) {
+      setDateFromString(params.get("date"));
+    }
+
+    refreshAll();
+    startAutoRefresh();
+  });
+
+  // ============================================
+  // DATE PICKER FUNCTIONS
+  // ============================================
+  function initializeDatePicker() {
+    const dateInput = document.getElementById("dateInput");
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    dateInput.value = `${yyyy}-${mm}-${dd}`;
+    currentDate = today.toLocaleDateString();
+  }
+
+  function onDateChange() {
+    const dateInput = document.getElementById("dateInput");
+    const selectedDate = new Date(dateInput.value + "T00:00:00");
+    currentDate = selectedDate.toLocaleDateString();
+    refreshAll();
+  }
+
+  function changeDate(days) {
+    const dateInput = document.getElementById("dateInput");
+    const current = new Date(dateInput.value + "T00:00:00");
+    current.setDate(current.getDate() + days);
+
+    const yyyy = current.getFullYear();
+    const mm = String(current.getMonth() + 1).padStart(2, '0');
+    const dd = String(current.getDate()).padStart(2, '0');
+    dateInput.value = `${yyyy}-${mm}-${dd}`;
+
+    currentDate = current.toLocaleDateString();
+    refreshAll();
+  }
+
+  function goToToday() {
+    initializeDatePicker();
+    refreshAll();
+  }
+
+  function setDateFromString(dateStr) {
+    const dateInput = document.getElementById("dateInput");
+    const date = new Date(dateStr);
+    if (!isNaN(date.getTime())) {
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      dateInput.value = `${yyyy}-${mm}-${dd}`;
+      currentDate = date.toLocaleDateString();
+    }
+  }
+
+  function startAutoRefresh() {
+    if (refreshInterval) clearInterval(refreshInterval);
+    refreshInterval = setInterval(() => {
+      if (document.getElementById("autoRefresh").checked) {
+        refreshAll();
+      }
+    }, 30000);
+  }
+
+  // ============================================
+  // VENUE SELECTION
+  // ============================================
+  function selectVenue(venue) {
+    currentVenue = venue;
+
+    document.querySelectorAll(".venue-btn").forEach(btn => btn.classList.remove("active"));
+    if (venue === "Tight End") {
+      document.querySelector(".venue-btn.tight-end").classList.add("active");
+    } else {
+      document.querySelector(".venue-btn.wild-corgi").classList.add("active");
+    }
+
+    refreshAll();
+  }
+
+  // ============================================
+  // DATA FETCHING
+  // ============================================
+  async function refreshAll() {
+    const btn = document.getElementById("refreshBtn");
+    btn.classList.add("loading");
+    btn.textContent = "Refreshing...";
+
+    try {
+      await Promise.all([
+        fetchDailyStats(),
+        fetchLiveScoring(1),
+        fetchLiveScoring(2),
+        fetchLeaderboard()
+      ]);
+
+      document.getElementById("lastUpdated").textContent = new Date().toLocaleTimeString();
+    } catch (err) {
+      console.error("Refresh failed:", err);
+    }
+
+    btn.classList.remove("loading");
+    btn.textContent = "Refresh Now";
+  }
+
+  async function fetchDailyStats() {
+    try {
+      console.log("Fetching daily stats for:", currentDate, currentVenue);
+      const res = await fetch(`${API_URL}?action=getDailyStats&date=${encodeURIComponent(currentDate)}&location=${encodeURIComponent(currentVenue)}`);
+      dailyStats = await res.json();
+      console.log("Daily stats response:", dailyStats);
+      renderCheckins();
+      renderRsvps();
+      updateStats();
+    } catch (err) {
+      console.error("Failed to fetch daily stats:", err);
+    }
+  }
+
+  async function fetchLiveScoring(gameNum) {
+    try {
+      const res = await fetch(`${API_URL}?action=getLiveScoring&date=${encodeURIComponent(currentDate)}&gameNum=${gameNum}&location=${encodeURIComponent(currentVenue)}`);
+      const data = await res.json();
+
+      if (gameNum === 1) {
+        liveScoring.game1 = data;
+      } else {
+        liveScoring.game2 = data;
+      }
+
+      renderScoring();
+      renderBounties();
+      updateStats();
+    } catch (err) {
+      console.error("Failed to fetch live scoring:", err);
+    }
+  }
+
+  async function fetchLeaderboard() {
+    try {
+      const res = await fetch(`${API_URL}?action=getLeaderboard&venue=${encodeURIComponent(currentVenue)}`);
+      leaderboard = await res.json();
+      renderLeaderboard();
+      renderBountyLeaders();
+    } catch (err) {
+      console.error("Failed to fetch leaderboard:", err);
+    }
+  }
+
+  // ============================================
+  // CHECK-IN FROM RSVP (Firestore First)
+  // ============================================
+  async function checkInFromRsvp(playerName, gameNum) {
+    if (!confirm(`Check in ${playerName} for Game ${gameNum}?`)) return;
+
+    const startTime = performance.now();
+
+    if (useFirebase && db) {
+      try {
+        // Write to Firestore first (fast!)
+        await addDoc(collection(db, "checkins"), {
+          player: playerName,
+          venue: currentVenue,
+          gameNum: gameNum,
+          date: currentDate,
+          timestamp: serverTimestamp(),
+          syncedToSheets: false
+        });
+
+        const elapsed = Math.round(performance.now() - startTime);
+        console.log(`Check-in saved in ${elapsed}ms`);
+        fetchDailyStats();
+      } catch (err) {
+        console.error("Firestore error, falling back to GAS:", err);
+        await checkInFromRsvpGAS(playerName, gameNum);
+      }
+    } else {
+      await checkInFromRsvpGAS(playerName, gameNum);
+    }
+  }
+
+  async function checkInFromRsvpGAS(playerName, gameNum) {
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "checkin",
+          player: playerName,
+          date: currentDate,
+          gameNumber: gameNum,
+          location: currentVenue
+        })
+      });
+      const data = await res.json();
+
+      if (data.status === "success" || data.status === "duplicate") {
+        fetchDailyStats();
+      } else {
+        alert("Error: " + (data.message || "Check-in failed"));
+      }
+    } catch (err) {
+      alert("Network error during check-in");
+      console.error(err);
+    }
+  }
+
+  // ============================================
+  // RENDERING
+  // ============================================
+  function updateStats() {
+    if (!dailyStats) return;
+
+    const gameData = activeStatsGame === 1 ? dailyStats.game1 : dailyStats.game2;
+    const scoringData = activeStatsGame === 1 ? liveScoring.game1 : liveScoring.game2;
+
+    const checkedIn = gameData?.checkedIn?.length || 0;
+    const rsvpPending = gameData?.rsvpList?.length || 0;
+    const eliminated = scoringData?.eliminations?.length || 0;
+
+    document.getElementById("totalCheckedIn").textContent = checkedIn;
+    document.getElementById("totalRsvp").textContent = rsvpPending;
+    document.getElementById("totalExpected").textContent = checkedIn + rsvpPending;
+    document.getElementById("eliminatedCount").textContent = eliminated;
+  }
+
+  function switchStatsGame(gameNum) {
+    activeStatsGame = gameNum;
+    const tabs = document.querySelectorAll(".stats-row").item(0)?.previousElementSibling?.querySelectorAll(".game-tab");
+    if (tabs) {
+      tabs.forEach((t, i) => t.classList.toggle("active", i + 1 === gameNum));
+    }
+    updateStats();
+  }
+
+  function renderCheckins() {
+    if (!dailyStats) return;
+
+    const game1 = dailyStats.game1?.checkedIn || [];
+    const game2 = dailyStats.game2?.checkedIn || [];
+
+    document.getElementById("g1CheckinCount").textContent = game1.length;
+    document.getElementById("g2CheckinCount").textContent = game2.length;
+    document.getElementById("checkedInBadge").textContent = game1.length + game2.length;
+
+    const list = activeCheckinTab === 1 ? game1 : game2;
+    const container = document.getElementById("checkinList");
+
+    if (list.length === 0) {
+      container.innerHTML = '<div class="empty-state">No check-ins yet</div>';
+      return;
+    }
+
+    container.innerHTML = list.map((p, i) => `
+      <div class="player-item checked-in">
+        <span class="player-rank">${i + 1}</span>
+        <span class="player-name">${p.name}</span>
+      </div>
+    `).join("");
+  }
+
+  function renderRsvps() {
+    if (!dailyStats) return;
+
+    const game1 = dailyStats.game1?.rsvpList || [];
+    const game2 = dailyStats.game2?.rsvpList || [];
+    const game1Pending = dailyStats.game1?.rsvpPending || 0;
+    const game2Pending = dailyStats.game2?.rsvpPending || 0;
+
+    document.getElementById("g1RsvpCount").textContent = `${game1Pending}/${game1.length}`;
+    document.getElementById("g2RsvpCount").textContent = `${game2Pending}/${game2.length}`;
+    document.getElementById("rsvpBadge").textContent = game1Pending + game2Pending;
+
+    const list = activeRsvpTab === 1 ? game1 : game2;
+    const container = document.getElementById("rsvpList");
+
+    if (list.length === 0) {
+      container.innerHTML = '<div class="empty-state">No RSVPs yet</div>';
+      return;
+    }
+
+    const sorted = [...list].sort((a, b) => (a.arrived ? 1 : 0) - (b.arrived ? 1 : 0));
+
+    container.innerHTML = sorted.map((p, i) => `
+      <div class="player-item rsvp ${p.arrived ? 'arrived' : ''}"
+           onclick="${p.arrived ? '' : `checkInFromRsvp('${p.name.replace(/'/g, "\\'")}', ${activeRsvpTab})`}">
+        <span class="player-rank">${i + 1}</span>
+        <span class="player-name">${p.name}</span>
+        ${p.arrived ? '<span class="arrived-badge">ARRIVED</span>' : '<span class="checkin-hint">tap to check in</span>'}
+      </div>
+    `).join("");
+  }
+
+  function renderScoring() {
+    const data = activeScoringTab === 1 ? liveScoring.game1 : liveScoring.game2;
+    const eliminations = data?.eliminations || [];
+
+    document.getElementById("scoringBadge").textContent =
+      (liveScoring.game1?.eliminations?.length || 0) + (liveScoring.game2?.eliminations?.length || 0);
+
+    const container = document.getElementById("scoringList");
+
+    if (eliminations.length === 0) {
+      container.innerHTML = '<div class="empty-state">No eliminations recorded</div>';
+      return;
+    }
+
+    const sorted = [...eliminations].sort((a, b) => a.rank - b.rank);
+
+    container.innerHTML = sorted.map(e => `
+      <div class="scoring-item">
+        <span class="rank ${e.rank <= 3 ? 'top3' : ''}">${e.rank}</span>
+        <span class="player-name" style="margin-left: 10px;">${e.player}</span>
+        <span class="player-score">${getPointsForRank(e.rank)} pts</span>
+      </div>
+    `).join("");
+  }
+
+  function renderBounties() {
+    const data = activeBountyTab === 1 ? liveScoring.game1 : liveScoring.game2;
+    const bounties = data?.bounties || [];
+
+    const totalBounties =
+      (liveScoring.game1?.bounties?.reduce((sum, b) => sum + (b.count || 0), 0) || 0) +
+      (liveScoring.game2?.bounties?.reduce((sum, b) => sum + (b.count || 0), 0) || 0);
+
+    document.getElementById("bountyBadge").textContent = totalBounties;
+
+    const container = document.getElementById("bountyList");
+
+    if (bounties.length === 0) {
+      container.innerHTML = '<div class="empty-state">No bounties recorded</div>';
+      return;
+    }
+
+    const sorted = [...bounties].sort((a, b) => b.count - a.count);
+
+    container.innerHTML = sorted.map(b => `
+      <div class="player-item">
+        <span class="player-name">${b.player}</span>
+        <span class="player-bounty">${b.count} bounties</span>
+      </div>
+    `).join("");
+  }
+
+  function renderLeaderboard() {
+    if (!leaderboard) return;
+
+    const list = leaderboard.league?.slice(0, 10) || [];
+    const container = document.getElementById("leaderboardList");
+
+    if (list.length === 0) {
+      container.innerHTML = '<div class="empty-state">No standings yet</div>';
+      return;
+    }
+
+    container.innerHTML = list.map((p, i) => {
+      const rank = i + 1;
+      const topClass = rank === 1 ? 'top1' : rank === 2 ? 'top2' : rank === 3 ? 'top3' : '';
+      return `
+        <div class="leaderboard-item ${topClass}">
+          <span class="leaderboard-rank">${rank}</span>
+          <span class="player-name">${p.name}</span>
+          <span class="player-score">${p.points} pts</span>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function renderBountyLeaders() {
+    if (!leaderboard) return;
+
+    const list = leaderboard.bounties?.slice(0, 10) || [];
+    const container = document.getElementById("bountyLeadersList");
+
+    if (list.length === 0) {
+      container.innerHTML = '<div class="empty-state">No bounties yet</div>';
+      return;
+    }
+
+    container.innerHTML = list.map((p, i) => {
+      const rank = i + 1;
+      const topClass = rank === 1 ? 'top1' : rank === 2 ? 'top2' : rank === 3 ? 'top3' : '';
+      return `
+        <div class="leaderboard-item ${topClass}">
+          <span class="leaderboard-rank">${rank}</span>
+          <span class="player-name">${p.name}</span>
+          <span class="player-bounty">${p.bounties} bounties</span>
+        </div>
+      `;
+    }).join("");
+  }
+
+  // ============================================
+  // TAB SWITCHING
+  // ============================================
+  function switchCheckinTab(gameNum) {
+    activeCheckinTab = gameNum;
+    document.querySelectorAll("#checkinList").forEach(el => el.parentElement.querySelectorAll(".game-tab").forEach((t, i) => {
+      t.classList.toggle("active", i + 1 === gameNum);
+    }));
+    renderCheckins();
+  }
+
+  function switchRsvpTab(gameNum) {
+    activeRsvpTab = gameNum;
+    document.querySelectorAll("#rsvpList").forEach(el => el.parentElement.querySelectorAll(".game-tab").forEach((t, i) => {
+      t.classList.toggle("active", i + 1 === gameNum);
+    }));
+    renderRsvps();
+  }
+
+  function switchScoringTab(gameNum) {
+    activeScoringTab = gameNum;
+    document.querySelectorAll("#scoringList").forEach(el => el.parentElement.querySelectorAll(".game-tab").forEach((t, i) => {
+      t.classList.toggle("active", i + 1 === gameNum);
+    }));
+    renderScoring();
+  }
+
+  function switchBountyTab(gameNum) {
+    activeBountyTab = gameNum;
+    document.querySelectorAll("#bountyList").forEach(el => el.parentElement.querySelectorAll(".game-tab").forEach((t, i) => {
+      t.classList.toggle("active", i + 1 === gameNum);
+    }));
+    renderBounties();
+  }
+
+  // ============================================
+  // HELPERS
+  // ============================================
+  function getPointsForRank(rank) {
+    const points = { 1: 100, 2: 95, 3: 90, 4: 80, 5: 70, 6: 60, 7: 50, 8: 40, 9: 30, 10: 20 };
+    return points[rank] || 10;
+  }
+</script>
+
+</body>
+</html>
