@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Season Points Audit</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #e2e8f0; padding: 16px; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 { margin: 0 0 8px; color: #facc15; }
+    .subtitle { color: #94a3b8; margin-bottom: 16px; }
+    .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+    .card { background: #111827; border: 1px solid #334155; border-radius: 10px; padding: 14px; }
+    h2 { margin: 0 0 12px; font-size: 1rem; color: #f8fafc; }
+    label { display: block; margin-bottom: 8px; font-size: 0.86rem; color: #cbd5e1; }
+    input, textarea, button, select { width: 100%; border-radius: 8px; border: 1px solid #475569; background: #0b1220; color: #f8fafc; padding: 10px; margin-top: 4px; font-size: 0.9rem; }
+    textarea { min-height: 120px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    button { background: #eab308; color: #111827; font-weight: 700; border: none; cursor: pointer; }
+    button.secondary { background: #334155; color: #f8fafc; margin-top: 8px; }
+    .help { font-size: 0.78rem; color: #94a3b8; margin-top: 6px; }
+    .status { margin-top: 10px; padding: 10px; border-radius: 8px; background: #1e293b; font-size: 0.86rem; }
+    .summary { margin-top: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+    .stat { background: #111827; border: 1px solid #334155; border-radius: 10px; padding: 10px; }
+    .stat .label { color: #94a3b8; font-size: 0.8rem; }
+    .stat .value { font-size: 1.4rem; font-weight: 700; color: #f8fafc; }
+    .table-wrap { margin-top: 16px; overflow: auto; border: 1px solid #334155; border-radius: 8px; }
+    table { width: 100%; border-collapse: collapse; min-width: 920px; }
+    th, td { border-bottom: 1px solid #334155; padding: 8px; text-align: left; font-size: 0.84rem; }
+    th { position: sticky; top: 0; background: #1f2937; }
+    tr.mismatch td { background: rgba(234, 179, 8, 0.08); }
+    tr.missing td { background: rgba(248, 113, 113, 0.08); }
+    .actions { margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .back-link { display: inline-block; margin-top: 18px; color: #93c5fd; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Season Points Audit Runner</h1>
+  <p class="subtitle">Upload matrix CSV, query Firebase directly, resolve source-of-truth by timeline, and generate discrepancy reports for manual review.</p>
+
+  <div class="grid">
+    <div class="card">
+      <h2>1) Matrix input</h2>
+      <label>Season ID
+        <input id="seasonId" placeholder="e.g. 2025" value="2025" />
+      </label>
+      <label>Default authority
+        <select id="defaultAuthority">
+          <option value="MATRIX">MATRIX</option>
+          <option value="FIREBASE">FIREBASE</option>
+        </select>
+      </label>
+      <label>Matrix CSV
+        <input id="matrixFile" type="file" accept=".csv,text/csv" />
+      </label>
+      <p class="help">Required matrix columns: <code>season_id,event_id,player_id,points_value</code>. Optional: <code>date</code>.</p>
+    </div>
+
+    <div class="card">
+      <h2>2) Firebase query + field mapping</h2>
+      <label>Firestore collection name
+        <input id="firebaseCollection" value="season_points" placeholder="e.g. season_points" />
+      </label>
+      <label>Optional season filter field name
+        <input id="firebaseSeasonField" value="season_id" placeholder="e.g. season_id" />
+      </label>
+      <label>Firebase field map (JSON)
+        <textarea id="firebaseFieldMap">{
+  "season_id": "season_id",
+  "event_id": "event_id",
+  "player_id": "player_id",
+  "points_value": "points_value",
+  "date": "date"
+}</textarea>
+      </label>
+      <p class="help">The mapping keys are canonical names and values are Firebase document field names.</p>
+    </div>
+
+    <div class="card">
+      <h2>3) Authority rules</h2>
+      <label>Segment overrides (JSON array)
+        <textarea id="segmentsInput">[
+  {"label":"Early season matrix","start_event":1,"end_event":8,"authority":"MATRIX"},
+  {"label":"Mid-season Firebase authoritative","start_event":9,"end_event":12,"authority":"FIREBASE"}
+]</textarea>
+      </label>
+      <label>Per-key exceptions (JSON object: "season|event|player" =&gt; "MATRIX"|"FIREBASE")
+        <textarea id="exceptionsInput">{
+  "2025|12|player_abc": "MATRIX"
+}</textarea>
+      </label>
+      <p class="help">Priority: Exception &gt; Segment override &gt; Default authority.</p>
+    </div>
+
+    <div class="card">
+      <h2>4) Run</h2>
+      <button id="runBtn">Run Audit</button>
+      <div class="status" id="status">Ready. Upload matrix CSV and click Run Audit.</div>
+      <div class="actions">
+        <button id="downloadCsv" class="secondary" disabled>Download discrepancy CSV</button>
+        <button id="downloadJson" class="secondary" disabled>Download full diff JSON</button>
+      </div>
+      <p class="help">Audit-only: this tool reads Firebase but does not write to it.</p>
+    </div>
+  </div>
+
+  <div class="summary" id="summary"></div>
+
+  <div class="table-wrap">
+    <table id="resultsTable">
+      <thead><tr><th>Composite Key</th><th>Diff Type</th><th>Matrix Points</th><th>Firebase Points</th><th>Authority</th><th>Recommendation</th><th>Authority Trace</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <a href="index.html" class="back-link">&larr; Back to menu</a>
+</div>
+
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+  import { getFirestore, collection, getDocs, query, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+  import { firebaseConfig } from './firebase-config.js';
+
+  const statusEl = document.getElementById('status');
+  const summaryEl = document.getElementById('summary');
+  const tbody = document.querySelector('#resultsTable tbody');
+  const runBtn = document.getElementById('runBtn');
+  const downloadCsvBtn = document.getElementById('downloadCsv');
+  const downloadJsonBtn = document.getElementById('downloadJson');
+
+  let db = null;
+  let latestDiff = [];
+  let latestDiscrepancies = [];
+
+  try {
+    db = getFirestore(initializeApp(firebaseConfig));
+    setStatus('Firebase connected. Ready to run audit.');
+  } catch (error) {
+    console.error(error);
+    setStatus(`Firebase init failed: ${error.message}`);
+  }
+
+  function setStatus(message) { statusEl.textContent = message; }
+
+  function parseCsv(text) {
+    const rows = []; let current = ''; let row = []; let inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i]; const next = text[i + 1];
+      if (ch === '"') { if (inQuotes && next === '"') { current += '"'; i++; } else { inQuotes = !inQuotes; } }
+      else if (ch === ',' && !inQuotes) { row.push(current); current = ''; }
+      else if ((ch === '\n' || ch === '\r') && !inQuotes) { if (ch === '\r' && next === '\n') i++; row.push(current); if (row.some(c => c.trim() !== '')) rows.push(row); row = []; current = ''; }
+      else { current += ch; }
+    }
+    if (current.length > 0 || row.length > 0) { row.push(current); if (row.some(c => c.trim() !== '')) rows.push(row); }
+    if (!rows.length) return [];
+    const headers = rows[0].map(h => h.trim());
+    return rows.slice(1).map((cells, idx) => {
+      const record = { __row: idx + 2 };
+      headers.forEach((h, i) => { record[h] = (cells[i] || '').trim(); });
+      return record;
+    });
+  }
+
+  function normalizeRecord(raw, sourceName, seasonId) {
+    const record = {
+      season_id: String(raw.season_id || seasonId || '').trim(),
+      event_id: String(raw.event_id || '').trim(),
+      player_id: String(raw.player_id || '').trim(),
+      points_value: Number(raw.points_value),
+      date: String(raw.date || '').trim(),
+      source: sourceName,
+      row_number: raw.__row || null
+    };
+    record.key = `${record.season_id}|${record.event_id}|${record.player_id}`;
+    if (!record.season_id || !record.event_id || !record.player_id || Number.isNaN(record.points_value)) record.invalid = true;
+    return record;
+  }
+
+  async function readFileAsText(file) {
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsText(file);
+    });
+  }
+
+  async function fetchFirebaseRows(seasonId, collectionName, seasonField, fieldMap) {
+    if (!db) throw new Error('Firebase not initialized.');
+    if (!collectionName) throw new Error('Firestore collection name is required.');
+
+    const baseCollection = collection(db, collectionName);
+    const seasonQuery = seasonField ? query(baseCollection, where(seasonField, '==', seasonId)) : query(baseCollection);
+    const snap = await getDocs(seasonQuery);
+
+    return snap.docs.map(docSnap => {
+      const data = docSnap.data();
+      return normalizeRecord({
+        season_id: data[fieldMap.season_id],
+        event_id: data[fieldMap.event_id],
+        player_id: data[fieldMap.player_id],
+        points_value: data[fieldMap.points_value],
+        date: fieldMap.date ? data[fieldMap.date] : '',
+        __row: docSnap.id
+      }, 'FIREBASE', seasonId);
+    }).filter(r => !r.invalid);
+  }
+
+  function resolveAuthority(record, defaultAuthority, segments, exceptions) {
+    if (exceptions[record.key]) return { authority: exceptions[record.key], trace: `Exception:${record.key}` };
+    const eventNum = Number(record.event_id); const date = record.date || '';
+    for (const segment of segments) {
+      const eventMatch = Number.isFinite(eventNum) && Number.isFinite(Number(segment.start_event)) && Number.isFinite(Number(segment.end_event))
+        ? eventNum >= Number(segment.start_event) && eventNum <= Number(segment.end_event)
+        : false;
+      const dateMatch = segment.start_date && segment.end_date && date
+        ? date >= segment.start_date && date <= segment.end_date
+        : false;
+      if (eventMatch || dateMatch) return { authority: segment.authority, trace: `Segment:${segment.label || 'unnamed'}` };
+    }
+    return { authority: defaultAuthority, trace: 'Default authority' };
+  }
+
+  const classifyDiff = (m, f) => !m && f ? 'MISSING_IN_MATRIX' : m && !f ? 'MISSING_IN_FIREBASE' : m.points_value !== f.points_value ? 'MISMATCH_VALUE' : 'MATCH';
+
+  function recommendation(diffType, authority) {
+    if (diffType === 'MATCH') return 'No action';
+    if (diffType === 'MISSING_IN_MATRIX') return authority === 'MATRIX' ? 'Investigate missing matrix row (manual review)' : 'Matrix likely needs add/update from Firebase';
+    if (diffType === 'MISSING_IN_FIREBASE') return authority === 'MATRIX' ? 'Firebase likely needs add/update from Matrix' : 'Investigate missing Firebase row (manual review)';
+    if (diffType === 'MISMATCH_VALUE') return authority === 'MATRIX' ? 'Update Firebase points to matrix value' : 'Update matrix points to Firebase value';
+    return 'Manual review required';
+  }
+
+  function renderSummary(data) {
+    const blocks = [['Total keys', data.total], ['Matches', data.matches], ['Discrepancies', data.discrepancies], ['Missing in Matrix', data.missingMatrix], ['Missing in Firebase', data.missingFirebase], ['Mismatched value', data.mismatchValue]];
+    summaryEl.innerHTML = blocks.map(([label, value]) => `<div class="stat"><div class="label">${label}</div><div class="value">${value}</div></div>`).join('');
+  }
+
+  function renderRows(rows) {
+    tbody.innerHTML = rows.map(row => {
+      const cssClass = row.diff_type === 'MISMATCH_VALUE' ? 'mismatch' : (row.diff_type.startsWith('MISSING') ? 'missing' : '');
+      return `<tr class="${cssClass}"><td>${row.key}</td><td>${row.diff_type}</td><td>${row.matrix_points ?? ''}</td><td>${row.firebase_points ?? ''}</td><td>${row.authority}</td><td>${row.recommended_action}</td><td>${row.authority_trace}</td></tr>`;
+    }).join('');
+  }
+
+  function toCsv(rows) {
+    const headers = ['key', 'diff_type', 'matrix_points', 'firebase_points', 'authority', 'recommended_action', 'authority_trace'];
+    const escaped = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    return [headers.join(','), ...rows.map(row => headers.map(h => escaped(row[h])).join(','))].join('\n');
+  }
+
+  function downloadBlob(content, filename, type) {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url);
+  }
+
+  runBtn.addEventListener('click', async () => {
+    try {
+      const matrixFile = document.getElementById('matrixFile').files[0];
+      if (!matrixFile) return setStatus('Please upload the Matrix CSV file.');
+
+      const seasonId = document.getElementById('seasonId').value.trim();
+      const defaultAuthority = document.getElementById('defaultAuthority').value;
+      const segments = JSON.parse(document.getElementById('segmentsInput').value || '[]');
+      const exceptions = JSON.parse(document.getElementById('exceptionsInput').value || '{}');
+      const collectionName = document.getElementById('firebaseCollection').value.trim();
+      const seasonField = document.getElementById('firebaseSeasonField').value.trim();
+      const fieldMap = JSON.parse(document.getElementById('firebaseFieldMap').value || '{}');
+
+      setStatus('Reading matrix CSV...');
+      const matrixRows = parseCsv(await readFileAsText(matrixFile)).map(r => normalizeRecord(r, 'MATRIX', seasonId)).filter(r => !r.invalid);
+
+      setStatus('Querying Firestore...');
+      const firebaseRows = await fetchFirebaseRows(seasonId, collectionName, seasonField, fieldMap);
+
+      const matrixMap = new Map(matrixRows.map(r => [r.key, r]));
+      const firebaseMap = new Map(firebaseRows.map(r => [r.key, r]));
+      const allKeys = new Set([...matrixMap.keys(), ...firebaseMap.keys()]);
+
+      const diffRows = [];
+      for (const key of allKeys) {
+        const matrixRec = matrixMap.get(key);
+        const firebaseRec = firebaseMap.get(key);
+        const driver = matrixRec || firebaseRec;
+        const { authority, trace } = resolveAuthority(driver, defaultAuthority, segments, exceptions);
+        const diffType = classifyDiff(matrixRec, firebaseRec);
+        diffRows.push({ key, diff_type: diffType, matrix_points: matrixRec?.points_value, firebase_points: firebaseRec?.points_value, authority, authority_trace: trace, recommended_action: recommendation(diffType, authority) });
+      }
+
+      latestDiff = diffRows;
+      latestDiscrepancies = diffRows.filter(r => r.diff_type !== 'MATCH');
+      renderSummary({
+        total: diffRows.length,
+        matches: diffRows.filter(r => r.diff_type === 'MATCH').length,
+        discrepancies: latestDiscrepancies.length,
+        missingMatrix: diffRows.filter(r => r.diff_type === 'MISSING_IN_MATRIX').length,
+        missingFirebase: diffRows.filter(r => r.diff_type === 'MISSING_IN_FIREBASE').length,
+        mismatchValue: diffRows.filter(r => r.diff_type === 'MISMATCH_VALUE').length
+      });
+      renderRows(latestDiscrepancies.length ? latestDiscrepancies : diffRows);
+      setStatus(`Audit complete. Matrix rows: ${matrixRows.length}; Firebase rows: ${firebaseRows.length}; discrepancies: ${latestDiscrepancies.length}.`);
+      downloadCsvBtn.disabled = false;
+      downloadJsonBtn.disabled = false;
+    } catch (error) {
+      console.error(error);
+      setStatus(`Audit failed: ${error.message}`);
+    }
+  });
+
+  downloadCsvBtn.addEventListener('click', () => downloadBlob(toCsv(latestDiscrepancies.length ? latestDiscrepancies : latestDiff), `season-audit-discrepancies-${Date.now()}.csv`, 'text/csv;charset=utf-8'));
+  downloadJsonBtn.addEventListener('click', () => downloadBlob(JSON.stringify({ generated_at: new Date().toISOString(), rows: latestDiff }, null, 2), `season-audit-diff-${Date.now()}.json`, 'application/json'));
+</script>
+</body>
+</html>
