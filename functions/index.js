@@ -266,6 +266,91 @@ exports.syncEliminationDeleteToGAS = functions.firestore
   });
 
 /**
+ * Triggered when a player is marked as an automatic qualifier in Firestore.
+ * Syncs to GAS so the Heritage sheet also reflects the qualified status.
+ *
+ * NOTE: This expects the GAS backend to implement a `setQualified` action.
+ * If GAS does not yet handle it, the sync will fail and be marked with a
+ * syncError, but the qualifier still lives in Firestore and the leaderboard
+ * will still show the badge (the leaderboard merges Firestore qualifiers).
+ */
+exports.syncQualifierToGAS = functions.firestore
+  .document('qualifiers/{qualifierId}')
+  .onCreate(async (snap, context) => {
+    const qualifierId = context.params.qualifierId;
+    const data = snap.data();
+
+    if (data.syncedToSheets) {
+      return null;
+    }
+
+    console.log(`Syncing qualifier ${qualifierId} to GAS:`, data);
+
+    try {
+      const response = await fetch(GAS_API_URL, {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'setQualified',
+          player: data.player,
+          venue: data.venue,
+          note: data.note || ''
+        })
+      });
+
+      const result = await response.json();
+
+      await snap.ref.update({
+        syncedToSheets: true,
+        syncedAt: admin.firestore.FieldValue.serverTimestamp(),
+        gasResponse: result
+      });
+
+      return { success: true };
+
+    } catch (error) {
+      console.error(`Error syncing qualifier ${qualifierId}:`, error);
+      await snap.ref.update({
+        syncError: error.message
+      });
+      throw error;
+    }
+  });
+
+/**
+ * Triggered when a qualifier is removed in Firestore.
+ * Syncs the removal to GAS.
+ */
+exports.syncQualifierDeleteToGAS = functions.firestore
+  .document('qualifiers/{qualifierId}')
+  .onDelete(async (snap, context) => {
+    const qualifierId = context.params.qualifierId;
+    const data = snap.data();
+
+    console.log(`Syncing qualifier removal ${qualifierId} to GAS:`, data);
+
+    try {
+      const response = await fetch(GAS_API_URL, {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'removeQualified',
+          player: data.player,
+          venue: data.venue
+        })
+      });
+
+      const result = await response.json();
+      console.log(`GAS qualifier removal completed:`, result);
+
+      return { success: true };
+
+    } catch (error) {
+      console.error(`Error syncing qualifier removal ${qualifierId}:`, error);
+      // Can't update a deleted document - just log.
+      return { success: false, error: error.message };
+    }
+  });
+
+/**
  * Manual retry function - call this to retry failed syncs
  * Can be triggered via HTTP or scheduled
  */

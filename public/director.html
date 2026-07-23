@@ -431,6 +431,20 @@
       <div id="manualCheckinMsg" style="color: #4ade80; font-size: 0.8rem; margin-top: 6px; text-align: center; height: 20px;"></div>
     </div>
 
+    <div class="section" style="background: #2a2418; border-color: #d4af37;">
+      <h3 style="color: #d4af37;">🏆 Automatic Qualifier</h3>
+      <div style="color: #888; font-size: 0.75rem; margin-bottom: 8px; text-align: center;">
+        Mark a player as qualified for <span id="qualifierVenueLabel">this console</span> — works even with zero points (e.g. the previous season's console winner).
+      </div>
+      <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+        <input type="text" id="qualifierNameInput" placeholder="Winner's name..." style="flex: 1; padding: 10px; border-radius: 6px; border: 1px solid #333; background: #000; color: white; font-size: 0.95rem;">
+        <button onclick="markQualifier()" style="background: #d4af37; color: #000; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer;">Qualify</button>
+      </div>
+      <input type="text" id="qualifierNoteInput" placeholder="Optional note (e.g. 2025 season winner)" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #333; background: #000; color: white; font-size: 0.85rem; margin-bottom: 6px;">
+      <div id="qualifierMsg" style="color: #d4af37; font-size: 0.8rem; text-align: center; height: 20px;"></div>
+      <div id="qualifier-list" style="margin-top: 8px;"></div>
+    </div>
+
     <div class="section">
       <h3>Step 1: Select Final Table Players</h3>
       <div style="position: relative; margin-bottom: 12px;">
@@ -578,10 +592,14 @@
   let syncInterval = null;
   let unsubscribeBounties = null;
   let unsubscribeEliminations = null;
+  let qualifiers = [];
+  let unsubscribeQualifiers = null;
 
   // Make functions available globally
   window.manualRefresh = manualRefresh;
   window.manualCheckin = manualCheckin;
+  window.markQualifier = markQualifier;
+  window.removeQualifier = removeQualifier;
   window.loadRoster = loadRoster;
   window.clearSearch = clearSearch;
   window.adjustRank = adjustRank;
@@ -699,6 +717,148 @@
       msg.textContent = 'Network error';
       console.error(err);
     }
+  }
+
+  // ============================================
+  // AUTOMATIC QUALIFIER (Firestore First)
+  // ============================================
+  async function markQualifier() {
+    const input = document.getElementById('qualifierNameInput');
+    const noteInput = document.getElementById('qualifierNoteInput');
+    const msg = document.getElementById('qualifierMsg');
+    const playerName = input.value.trim();
+    const note = noteInput.value.trim();
+
+    if (!playerName) {
+      msg.style.color = '#ff4444';
+      msg.textContent = 'Please enter a player name';
+      return;
+    }
+    if (!currentLocation) {
+      msg.style.color = '#ff4444';
+      msg.textContent = 'Select an event/venue first';
+      return;
+    }
+
+    // Prevent obvious duplicates for this venue
+    const already = qualifiers.some(q =>
+      q.player.toLowerCase() === playerName.toLowerCase());
+    if (already) {
+      msg.style.color = '#ffa500';
+      msg.textContent = `${playerName} is already qualified for ${currentLocation}`;
+      return;
+    }
+
+    msg.style.color = '#ffa500';
+    msg.textContent = 'Qualifying...';
+
+    if (useFirebase && db) {
+      try {
+        await addDoc(collection(db, "qualifiers"), {
+          player: playerName,
+          venue: currentLocation,
+          note: note,
+          qualified: true,
+          timestamp: serverTimestamp(),
+          syncedToSheets: false
+        });
+        msg.style.color = '#4ade80';
+        msg.textContent = `✓ ${playerName} qualified for ${currentLocation}`;
+        input.value = '';
+        noteInput.value = '';
+      } catch (err) {
+        console.error("Firestore error, falling back to GAS:", err);
+        await markQualifierGAS(playerName, note, msg, input, noteInput);
+      }
+    } else {
+      await markQualifierGAS(playerName, note, msg, input, noteInput);
+    }
+  }
+
+  async function markQualifierGAS(playerName, note, msg, input, noteInput) {
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "setQualified",
+          player: playerName,
+          venue: currentLocation,
+          note: note
+        })
+      });
+      const data = await res.json();
+      if (data.status === "success" || data.status === "duplicate") {
+        msg.style.color = '#4ade80';
+        msg.textContent = `✓ ${playerName} qualified for ${currentLocation}`;
+        input.value = '';
+        noteInput.value = '';
+        loadQualifiers();
+      } else {
+        msg.style.color = '#ff4444';
+        msg.textContent = 'Error: ' + (data.message || 'Qualify failed');
+      }
+    } catch (err) {
+      msg.style.color = '#ff4444';
+      msg.textContent = 'Network error';
+      console.error(err);
+    }
+  }
+
+  async function removeQualifier(docId) {
+    const q = qualifiers.find(x => x.id === docId);
+    const playerName = q ? q.player : 'this player';
+    if (!confirm(`Remove ${playerName} from qualifiers for ${currentLocation}?`)) return;
+    if (useFirebase && db && docId) {
+      try {
+        await deleteDoc(doc(db, "qualifiers", docId));
+      } catch (err) {
+        console.error("Firestore delete error:", err);
+        alert('Error removing qualifier');
+      }
+    }
+  }
+
+  function loadQualifiers() {
+    // Firebase uses a real-time listener (setupFirestoreListeners); this is
+    // the GAS-only fallback path.
+    if (useFirebase) return;
+    if (!currentLocation) return;
+    fetch(`${API_URL}?action=getQualifiers&venue=${encodeURIComponent(currentLocation)}`)
+      .then(r => r.json())
+      .then(data => {
+        qualifiers = Array.isArray(data) ? data : (data.qualifiers || []);
+        renderQualifiers();
+      })
+      .catch(() => { qualifiers = []; renderQualifiers(); });
+  }
+
+  function renderQualifiers() {
+    const list = document.getElementById('qualifier-list');
+    if (!list) return;
+
+    const venueLabel = document.getElementById('qualifierVenueLabel');
+    if (venueLabel) venueLabel.innerText = currentLocation || 'this console';
+
+    if (!qualifiers.length) {
+      list.innerHTML = '<div style="color:#555; font-size:0.75rem; text-align:center;">No qualifiers yet for this console</div>';
+      return;
+    }
+
+    list.innerHTML = qualifiers.map(q => `
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; background:#1a1a1a; border:1px solid #d4af37; border-radius:6px; padding:8px 10px; margin-bottom:6px;">
+        <div>
+          <span style="color:#d4af37; font-weight:600;">🏆 ${escapeHtml(q.player)}</span>
+          ${q.note ? `<span style="color:#666; font-size:0.75rem; margin-left:6px;">${escapeHtml(q.note)}</span>` : ''}
+        </div>
+        <button onclick="removeQualifier('${q.id || ''}')" style="background:none; border:none; color:#ff4444; font-size:1.2rem; cursor:pointer; padding:0 4px;">×</button>
+      </div>
+    `).join('');
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str == null ? '' : str;
+    return div.innerHTML;
   }
 
   // ============================================
@@ -936,6 +1096,18 @@
     // Clean up previous listeners
     if (unsubscribeBounties) unsubscribeBounties();
     if (unsubscribeEliminations) unsubscribeEliminations();
+    if (unsubscribeQualifiers) unsubscribeQualifiers();
+
+    // Listen for qualifiers (per venue/console)
+    const qualifiersQuery = query(
+      collection(db, "qualifiers"),
+      where("venue", "==", currentLocation)
+    );
+
+    unsubscribeQualifiers = onSnapshot(qualifiersQuery, (snapshot) => {
+      qualifiers = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderQualifiers();
+    });
 
     // Listen for bounties
     const bountiesQuery = query(
@@ -1070,7 +1242,10 @@
         // Setup Firestore listeners for real-time updates
         if (useFirebase) {
           setupFirestoreListeners();
+        } else {
+          loadQualifiers();
         }
+        renderQualifiers();
       });
   }
 

@@ -225,6 +225,28 @@ The user sees success in ~100ms. The Heritage sheet updates 3-8 seconds later.
 }
 ```
 
+### `qualifiers`
+Automatic qualifiers, set from the Director tool. A qualified player shows the
+"Qualified" badge on the leaderboard even with **zero points** (e.g. the
+previous season's console winner). Tied to a venue/console.
+```javascript
+{
+  player: "Jake",
+  venue: "Tight End",
+  note: "2025 season winner",  // optional
+  qualified: true,
+  timestamp: Timestamp,
+  syncedToSheets: false        // true after GAS sync
+}
+```
+
+The Cloud Functions `syncQualifierToGAS` / `syncQualifierDeleteToGAS` push
+qualifier add/remove to GAS via `action: 'setQualified'` /
+`action: 'removeQualified'`. **These GAS actions need to be implemented on the
+Heritage/Apps Script side** for the sheet to reflect qualifiers; until then the
+qualifier still lives in Firestore and the leaderboard merges it in client-side,
+so the badge appears regardless.
+
 ---
 
 ## Monitoring

@@ -331,14 +331,25 @@
 </div>
 
 <script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+  import { getFirestore, collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
   import { firebaseConfig, GAS_API_URL, isFirebaseConfigured } from './firebase-config.js';
 
   // ============================================
   // CONFIGURATION
   // ============================================
-  // Leaderboard is READ-ONLY, so it just uses GAS API for now
-  // In Phase 3, this could read from Firestore for faster loads
+  // Standings come from GAS. Automatic qualifiers are merged in from
+  // Firestore so a qualified player shows the badge even with zero points
+  // (and even if GAS doesn't return them in the league list).
   const API_URL = GAS_API_URL;
+
+  let db = null;
+  let useFirebase = false;
+  if (isFirebaseConfigured()) {
+    const app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    useFirebase = true;
+  }
 
   // ============================================
   // STATE
@@ -362,10 +373,13 @@
   function loadStandings() {
     fetch(API_URL + "?action=getLeaderboard&venue=" + encodeURIComponent(currentVenue))
       .then(r => r.json())
-      .then(data => {
+      .then(async data => {
         leagueData = data.league || [];
         bountyData = data.bounties || [];
         championshipDate = data.championshipDate || 'TBD';
+
+        // Merge in automatic qualifiers from Firestore (per venue/console).
+        await mergeQualifiers();
 
         // Update championship date display
         document.getElementById('championshipDate').innerText = 'Championship: ' + championshipDate;
@@ -386,6 +400,34 @@
         document.getElementById('loading').innerText = 'Failed to load standings';
         console.error(err);
       });
+  }
+
+  async function mergeQualifiers() {
+    if (!useFirebase || !db) return;
+    try {
+      const q = query(
+        collection(db, "qualifiers"),
+        where("venue", "==", currentVenue)
+      );
+      const snap = await getDocs(q);
+
+      snap.forEach(docSnap => {
+        const data = docSnap.data();
+        if (data.qualified === false) return;
+        const existing = leagueData.find(
+          p => p.name && p.name.toLowerCase() === String(data.player).toLowerCase()
+        );
+        if (existing) {
+          existing.qualified = true;
+        } else {
+          // Qualified with zero points and not in the league list — add them.
+          leagueData.push({ name: data.player, points: 0, qualified: true });
+        }
+      });
+    } catch (err) {
+      // Non-fatal: standings still render from GAS.
+      console.error("Failed to merge qualifiers:", err);
+    }
   }
 
   function updateStats() {
