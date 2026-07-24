@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>✅ Auto-Qualifiers - All-In Poker Club</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      background-color: #0a0a0a;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 15px;
+      max-width: 600px;
+      margin: 0 auto;
+      padding-bottom: 80px;
+    }
+    h1 {
+      color: #d4af37;
+      text-align: center;
+      margin: 0 0 4px 0;
+      font-size: 1.2rem;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      text-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+    }
+    .subtitle { text-align: center; color: #666; font-size: 0.75rem; margin-bottom: 16px; }
+
+    .top-controls { display: flex; gap: 8px; margin-bottom: 14px; }
+    .venue-toggle, .back-btn {
+      background: #1a1a1a; color: #d4af37; border: 1px solid #333;
+      padding: 10px 14px; border-radius: 8px; font-size: 0.85rem;
+      font-weight: 600; cursor: pointer;
+    }
+    .venue-toggle { flex: 1; }
+    .venue-toggle:active { background: #d4af37; color: #000; }
+
+    .section {
+      background: #1a1a1a; margin-bottom: 12px; padding: 14px;
+      border-radius: 10px; border: 1px solid #333;
+    }
+    .section h3 {
+      margin: 0 0 10px 0; font-size: 0.75rem; color: #888;
+      text-transform: uppercase; letter-spacing: 1px;
+      padding-bottom: 8px; border-bottom: 1px solid #333;
+    }
+    label { display: block; color: #888; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; margin: 10px 0 4px; }
+    select, input[type="text"] {
+      width: 100%; background: #0d0d0d; color: #fff; border: 1px solid #333;
+      padding: 11px; font-size: 1rem; border-radius: 6px;
+    }
+    select { color: #d4af37; font-weight: 600; }
+
+    .search-wrap { position: relative; }
+    .suggestions {
+      position: absolute; top: 100%; left: 0; right: 0; z-index: 20;
+      background: #151515; border: 1px solid #444; border-top: none;
+      border-radius: 0 0 8px 8px; max-height: 220px; overflow-y: auto; display: none;
+    }
+    .suggestion {
+      padding: 11px 12px; cursor: pointer; font-size: 0.95rem;
+      border-bottom: 1px solid #222;
+    }
+    .suggestion:hover, .suggestion:active { background: #2a2418; color: #d4af37; }
+    .suggestion .aka { color: #666; font-size: 0.75rem; margin-left: 6px; }
+
+    .add-btn {
+      width: 100%; margin-top: 12px; padding: 13px;
+      background: linear-gradient(135deg, #d4af37, #b8952d); color: #000;
+      border: none; border-radius: 8px; font-size: 1rem; font-weight: 700;
+      cursor: pointer; text-transform: uppercase; letter-spacing: 1px;
+    }
+    .add-btn:disabled { background: #333; color: #666; cursor: not-allowed; }
+    .msg { min-height: 20px; font-size: 0.8rem; text-align: center; margin-top: 8px; }
+
+    .qual-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      background: #141414; border: 1px solid rgba(212,175,55,0.35);
+      border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
+    }
+    .qual-name { color: #d4af37; font-weight: 700; font-size: 0.95rem; }
+    .qual-note { color: #777; font-size: 0.72rem; margin-top: 2px; }
+    .qual-meta { color: #555; font-size: 0.65rem; margin-top: 2px; }
+    .remove-btn {
+      background: none; border: 1px solid #552222; color: #ff5555;
+      border-radius: 6px; font-size: 0.8rem; cursor: pointer; padding: 6px 10px;
+      flex-shrink: 0;
+    }
+    .remove-btn:active { background: #331111; }
+    .empty-state { text-align: center; color: #555; font-size: 0.85rem; padding: 18px 0; }
+    .hint { color: #666; font-size: 0.72rem; line-height: 1.5; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+  <h1>✅ Auto-Qualifiers</h1>
+  <div class="subtitle">Championship auto-qualifiers — counted even with zero points</div>
+
+  <div class="top-controls">
+    <button class="back-btn" onclick="location.href='gameday.html'">← Portal</button>
+    <button class="venue-toggle" id="venueBtn" onclick="toggleVenue()">Tight End</button>
+  </div>
+
+  <div class="section">
+    <h3>Season</h3>
+    <select id="seasonSelect" onchange="loadQualifiers()">
+      <option>Loading seasons…</option>
+    </select>
+    <div class="hint">Defaults to the current active season for this venue. Switch seasons here when a new one starts.</div>
+  </div>
+
+  <div class="section">
+    <h3>Add Auto-Qualifier</h3>
+    <label>Player</label>
+    <div class="search-wrap">
+      <input type="text" id="playerInput" placeholder="Type player name…" autocomplete="off">
+      <div class="suggestions" id="suggestions"></div>
+    </div>
+    <label>Note (optional)</label>
+    <input type="text" id="noteInput" placeholder="e.g. Season 32 console winner">
+    <button class="add-btn" id="addBtn" onclick="addQualifier()">Add Auto-Qualifier</button>
+    <div class="msg" id="addMsg"></div>
+  </div>
+
+  <div class="section">
+    <h3>Current Auto-Qualifiers <span id="qualCount" style="color:#d4af37;"></span></h3>
+    <div id="qualList"><div class="empty-state">Loading…</div></div>
+    <div class="hint">
+      These players get a championship berth and the “Qualified” badge on the leaderboard
+      for the selected season and venue — even at zero points. Game winners still
+      auto-qualify by winning; this list is for manual adds (previous-season winners, etc.).
+    </div>
+  </div>
+
+<script type="module">
+  import { PokerAPI, PlayerSearch } from './firebase-api.js?v=9';
+  import { requireStaff } from './staff-auth.js';
+  import { getFirestore, collection, addDoc, deleteDoc, doc, getDocs, query, where, serverTimestamp }
+    from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+  import { getAuth } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+  await requireStaff();
+
+  // Default Firebase app was initialized by firebase-api.js
+  const db = getFirestore();
+  const auth = getAuth();
+
+  const VENUES = ['Tight End', 'Wild Corgi'];
+  let currentVenue = 'Tight End';
+  let seasons = [];            // [{id, ...data}]
+  let qualifiers = [];         // [{id, player, note, ...}]
+  let playerNames = [];        // directory for autocomplete
+
+  window.toggleVenue = toggleVenue;
+  window.addQualifier = addQualifier;
+  window.removeQualifier = removeQualifier;
+  window.loadQualifiers = loadQualifiers;
+
+  // ---------- INIT ----------
+  loadPlayerDirectory();
+  await loadSeasons();
+  await loadQualifiers();
+  setupAutocomplete();
+
+  // ---------- VENUE ----------
+  async function toggleVenue() {
+    currentVenue = currentVenue === 'Tight End' ? 'Wild Corgi' : 'Tight End';
+    document.getElementById('venueBtn').textContent = currentVenue;
+    await loadSeasons();
+    await loadQualifiers();
+  }
+
+  // ---------- SEASONS ----------
+  async function loadSeasons() {
+    const sel = document.getElementById('seasonSelect');
+    sel.innerHTML = '<option>Loading seasons…</option>';
+    try {
+      const snap = await getDocs(query(collection(db, 'seasons'), where('venue', '==', currentVenue)));
+      seasons = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      seasons.sort((a, b) => new Date(b.startDate || 0) - new Date(a.startDate || 0));
+
+      if (!seasons.length) {
+        sel.innerHTML = '<option value="">No seasons found for this venue</option>';
+        return;
+      }
+      sel.innerHTML = seasons.map(s => {
+        const label = (s.name || s.seasonName || s.id) + (s.active ? ' — CURRENT' : '');
+        return `<option value="${escapeAttr(s.id)}">${escapeHtml(label)}</option>`;
+      }).join('');
+
+      // Default to the active season
+      const active = seasons.find(s => s.active);
+      if (active) sel.value = active.id;
+    } catch (err) {
+      console.error('loadSeasons failed:', err);
+      sel.innerHTML = '<option value="">Error loading seasons</option>';
+    }
+  }
+
+  function selectedSeasonId() {
+    return document.getElementById('seasonSelect').value || null;
+  }
+
+  // ---------- QUALIFIER LIST ----------
+  async function loadQualifiers() {
+    const listEl = document.getElementById('qualList');
+    const seasonId = selectedSeasonId();
+    if (!seasonId) {
+      listEl.innerHTML = '<div class="empty-state">Select a season first</div>';
+      document.getElementById('qualCount').textContent = '';
+      return;
+    }
+    listEl.innerHTML = '<div class="empty-state">Loading…</div>';
+    try {
+      const snap = await getDocs(query(
+        collection(db, 'autoQualifiers'),
+        where('venue', '==', currentVenue),
+        where('seasonId', '==', seasonId)
+      ));
+      qualifiers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      qualifiers.sort((a, b) => String(a.player).localeCompare(String(b.player)));
+      renderQualifiers();
+    } catch (err) {
+      console.error('loadQualifiers failed:', err);
+      listEl.innerHTML = '<div class="empty-state">Error loading qualifiers</div>';
+    }
+  }
+
+  function renderQualifiers() {
+    const listEl = document.getElementById('qualList');
+    document.getElementById('qualCount').textContent = qualifiers.length ? `(${qualifiers.length})` : '';
+    if (!qualifiers.length) {
+      listEl.innerHTML = '<div class="empty-state">No manual auto-qualifiers for this season yet</div>';
+      return;
+    }
+    listEl.innerHTML = qualifiers.map(q => `
+      <div class="qual-row">
+        <div>
+          <div class="qual-name">🏆 ${escapeHtml(q.player)}</div>
+          ${q.note ? `<div class="qual-note">${escapeHtml(q.note)}</div>` : ''}
+          ${q.addedBy ? `<div class="qual-meta">added by ${escapeHtml(q.addedBy)}</div>` : ''}
+        </div>
+        <button class="remove-btn" onclick="removeQualifier('${escapeAttr(q.id)}')">Remove</button>
+      </div>
+    `).join('');
+  }
+
+  // ---------- ADD ----------
+  async function addQualifier() {
+    const input = document.getElementById('playerInput');
+    const noteInput = document.getElementById('noteInput');
+    const msg = document.getElementById('addMsg');
+    const btn = document.getElementById('addBtn');
+    const player = input.value.trim();
+    const seasonId = selectedSeasonId();
+
+    if (!player) { setMsg(msg, '#ff5555', 'Enter a player name'); return; }
+    if (!seasonId) { setMsg(msg, '#ff5555', 'Select a season first'); return; }
+    if (qualifiers.some(q => String(q.player).toLowerCase() === player.toLowerCase())) {
+      setMsg(msg, '#ffa500', `${player} is already on the list`);
+      return;
+    }
+
+    btn.disabled = true;
+    setMsg(msg, '#ffa500', 'Saving…');
+    try {
+      await addDoc(collection(db, 'autoQualifiers'), {
+        player: player,
+        venue: currentVenue,
+        seasonId: seasonId,
+        note: noteInput.value.trim(),
+        qualified: true,
+        createdAt: serverTimestamp(),
+        addedBy: (auth.currentUser && auth.currentUser.email) || null
+      });
+      setMsg(msg, '#4ade80', `✓ ${player} auto-qualified for ${currentVenue}`);
+      input.value = '';
+      noteInput.value = '';
+      await loadQualifiers();
+    } catch (err) {
+      console.error('addQualifier failed:', err);
+      setMsg(msg, '#ff5555', 'Save failed — check Firestore rules allow autoQualifiers writes');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // ---------- REMOVE ----------
+  async function removeQualifier(docId) {
+    const q = qualifiers.find(x => x.id === docId);
+    const name = q ? q.player : 'this player';
+    if (!confirm(`Remove ${name} from auto-qualifiers?`)) return;
+    try {
+      await deleteDoc(doc(db, 'autoQualifiers', docId));
+      await loadQualifiers();
+    } catch (err) {
+      console.error('removeQualifier failed:', err);
+      alert('Remove failed');
+    }
+  }
+
+  // ---------- PLAYER AUTOCOMPLETE ----------
+  async function loadPlayerDirectory() {
+    try {
+      const res = await PokerAPI.getPlayerList();
+      const raw = Array.isArray(res) ? res : (res.players || res.names || []);
+      playerNames = raw
+        .map(p => typeof p === 'string' ? p : (p && p.name))
+        .filter(Boolean);
+    } catch (err) {
+      console.error('Player list failed (autocomplete disabled, free-typing still works):', err);
+      playerNames = [];
+    }
+  }
+
+  function setupAutocomplete() {
+    const input = document.getElementById('playerInput');
+    const box = document.getElementById('suggestions');
+
+    input.addEventListener('input', () => {
+      const qstr = input.value.trim();
+      if (!qstr || !playerNames.length) { box.style.display = 'none'; return; }
+      let matches = [];
+      try {
+        matches = PlayerSearch.rank(playerNames, qstr, 8) || [];
+      } catch (e) {
+        const ql = qstr.toLowerCase();
+        matches = playerNames.filter(n => n.toLowerCase().includes(ql)).slice(0, 8);
+      }
+      if (!matches.length) { box.style.display = 'none'; return; }
+      box.innerHTML = matches.map(m => {
+        const name = typeof m === 'string' ? m : m.name;
+        return `<div class="suggestion" data-name="${escapeAttr(name)}">${escapeHtml(name)}</div>`;
+      }).join('');
+      box.style.display = 'block';
+    });
+
+    box.addEventListener('click', (e) => {
+      const el = e.target.closest('.suggestion');
+      if (!el) return;
+      input.value = el.dataset.name;
+      box.style.display = 'none';
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.search-wrap')) box.style.display = 'none';
+    });
+  }
+
+  // ---------- HELPERS ----------
+  function setMsg(el, color, text) { el.style.color = color; el.textContent = text; }
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str == null ? '' : String(str);
+    return div.innerHTML;
+  }
+  function escapeAttr(str) { return escapeHtml(str).replace(/"/g, '&quot;'); }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,19 @@
+// ============================================================
+// AUTO-QUALIFIERS — add this match block inside your existing
+// firestore.rules, alongside your other collection rules
+// (inside: service cloud.firestore { match /databases/{database}/documents { ... } })
+// ============================================================
+//
+// Notes:
+// - getLeaderboard reads this collection with the Admin SDK, which BYPASSES
+//   rules — so the public leaderboard works no matter what you put here.
+// - These rules only govern the qualifiers-admin.html page (signed-in staff).
+// - If your rules file already has a staff/admin helper function (e.g.
+//   isStaff() checking the user profile role like staff-auth.js does),
+//   use that instead of the plain auth check — it's tighter.
+
+match /autoQualifiers/{qualifierId} {
+  allow read, write: if request.auth != null;
+  // Tighter alternative if you have a staff helper in your rules:
+  // allow read, write: if isStaff();
+}
